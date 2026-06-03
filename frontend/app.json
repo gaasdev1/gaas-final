@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Gaas",
+    "slug": "gaas",
+    "scheme": "gaas",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "plugins": ["expo-router"],
+    "ios": { "supportsTablet": true },
+    "android": { "adaptiveIcon": { "backgroundColor": "#000000" } }
+  }
+}
