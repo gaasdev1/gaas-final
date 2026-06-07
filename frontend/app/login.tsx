@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Apple, Mail, Sparkles } from 'lucide-react-native';
+import { Mail, Sparkles } from 'lucide-react-native';
 import { api, saveToken } from '@/services/api';
 
 export default function Login() {
-  const [email, setEmail] = useState('demo@gaas.app');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showEmail, setShowEmail] = useState(true);
 
@@ -24,8 +24,12 @@ export default function Login() {
         const response = await api.post('/auth/login', { email, password });
         data = response.data;
       }
-      await saveToken(data.access_token);
-      router.replace('/onboarding');
+      if (data.access_token) {
+        await saveToken(data.access_token);
+        router.replace('/onboarding');
+      } else {
+        Alert.alert('Controlla la mail', 'Account creato. Conferma la mail Supabase, poi accedi.');
+      }
     } catch (error) {
       Alert.alert('Accesso non riuscito', 'Controlla le credenziali o crea un account.');
     } finally {
@@ -50,17 +54,9 @@ export default function Login() {
         </View>
 
         <View style={styles.panel}>
-          <Pressable style={styles.authButton} onPress={() => submit('register')} disabled={loading}>
-            <View style={styles.authIcon}><Text style={styles.googleText}>G</Text></View>
-            <Text style={styles.authText}>Continua con Google</Text>
-          </Pressable>
-          <Pressable style={styles.authButton} onPress={() => submit('register')} disabled={loading}>
-            <View style={styles.authIcon}><Apple color="#F5F5F5" size={17} /></View>
-            <Text style={styles.authText}>Continua con Apple</Text>
-          </Pressable>
           <Pressable style={[styles.authButton, showEmail && styles.authButtonActive]} onPress={() => setShowEmail((value) => !value)}>
             <View style={styles.authIcon}><Mail color="#D6FF3F" size={17} /></View>
-            <Text style={styles.authText}>Continua con Email</Text>
+            <Text style={styles.authText}>Accedi con email Supabase</Text>
           </Pressable>
 
           {showEmail && (
@@ -71,7 +67,7 @@ export default function Login() {
                 {loading ? <ActivityIndicator color="#0F1115" /> : <Text style={styles.primaryText}>Accedi</Text>}
               </Pressable>
               <Pressable style={styles.secondary} onPress={() => submit('register')} disabled={loading}>
-                <Text style={styles.secondaryText}>Crea account demo</Text>
+                <Text style={styles.secondaryText}>Crea account</Text>
               </Pressable>
             </View>
           )}

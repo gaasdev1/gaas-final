@@ -5,7 +5,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Heart, MessageCircle, RotateCcw, Sparkles, X } from 'lucide-react-native';
 import { ActivityIndicator, Animated, Easing, Image, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ContentCard } from '@/components/ContentCard';
-import { decisionContent } from '@/data/decisionContent';
 import { api } from '@/services/api';
 import { Content, ContentType } from '@/types/content';
 
@@ -236,9 +235,8 @@ export default function Feed() {
   });
 
   const pool = useMemo(() => {
-    const merged = [...decisionContent, ...(data ?? [])];
     const seen = new Set<string>();
-    return merged.filter((entry) => {
+    return (data ?? []).filter((entry) => {
       const key = `${entry.content_type}:${entry.title.toLowerCase()}`;
       if (entry.content_type !== category || seen.has(key)) return false;
       seen.add(key);
@@ -335,13 +333,7 @@ export default function Feed() {
     client.invalidateQueries({ queryKey: ['decision-feed'] });
   }
 
-  async function seedDemo() {
-    await api.post('/admin/ingestion/seed');
-    await refetch();
-  }
-
   async function recordInteraction(current: Content, interactionType: 'LIKE' | 'DISLIKE' | 'SAVE' | 'CLICK_PLATFORM' | 'LONG_VIEW') {
-    if (current.id.startsWith('local-')) return undefined;
     const { data: result } = await api.post<InteractionResult>('/interaction', {
       content_id: current.id,
       interaction_type: interactionType,
@@ -448,16 +440,14 @@ export default function Feed() {
       });
     }
 
-    if (!current.id.startsWith('local-')) {
-      const interactionType = type === 'left' ? 'DISLIKE' : type === 'right' ? 'LIKE' : 'SAVE';
-      void (async () => {
-        if (viewSeconds >= 8) await recordInteraction(current, 'LONG_VIEW');
-        const result = await recordInteraction(current, interactionType);
-        if (type !== 'left') client.invalidateQueries({ queryKey: ['favorites'] });
-        client.invalidateQueries({ queryKey: ['decision-feed', category, session?.id, activeIntent?.id] });
-        if (result?.session_completed) setBackendTop3(result.top_3 ?? []);
-      })();
-    }
+    const interactionType = type === 'left' ? 'DISLIKE' : type === 'right' ? 'LIKE' : 'SAVE';
+    void (async () => {
+      if (viewSeconds >= 8) await recordInteraction(current, 'LONG_VIEW');
+      const result = await recordInteraction(current, interactionType);
+      if (type !== 'left') client.invalidateQueries({ queryKey: ['favorites'] });
+      client.invalidateQueries({ queryKey: ['decision-feed', category, session?.id, activeIntent?.id] });
+      if (result?.session_completed) setBackendTop3(result.top_3 ?? []);
+    })();
   }
 
   return (
@@ -553,8 +543,8 @@ export default function Feed() {
         {!isLoading && !showResults && !item && (
           <View style={styles.emptyBox}>
             <Text style={styles.emptyTitle}>Non ho abbastanza contenuti</Text>
-            <Text style={styles.empty}>Carica il set demo e riprova questa categoria.</Text>
-            <Pressable style={styles.primary} onPress={seedDemo}><Text style={styles.primaryText}>Carica demo</Text></Pressable>
+            <Text style={styles.empty}>Il catalogo Supabase non contiene ancora elementi disponibili per questa categoria.</Text>
+            <Pressable style={styles.primary} onPress={() => refetch()}><Text style={styles.primaryText}>Riprova</Text></Pressable>
           </View>
         )}
 

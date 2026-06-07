@@ -1,10 +1,7 @@
-import { useMemo } from 'react';
-import { Image, ImageBackground, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, ImageBackground, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Lock } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { decisionContent } from '@/data/decisionContent';
 import { Content } from '@/types/content';
 
 function signalText(item: Content) {
@@ -28,16 +25,6 @@ function CoreSignal({ item, index }: { item: Content; index: number }) {
   );
 }
 
-function LockedSignal({ index }: { index: number }) {
-  return (
-    <View style={styles.locked}>
-      <View style={styles.lockedBlur} />
-      <Lock color="#D6FF3F" size={18} />
-      <Text style={styles.lockedText}>Segnale nascosto {index + 1}</Text>
-    </View>
-  );
-}
-
 function Thread({ items }: { items: Content[] }) {
   const names = items.slice(0, 4).map((item) => item.title);
   return (
@@ -53,13 +40,9 @@ function Thread({ items }: { items: Content[] }) {
 }
 
 export default function Favorites() {
-  const { data } = useQuery({ queryKey: ['favorites'], queryFn: async () => (await api.get<Content[]>('/favorites')).data });
-  const vaultItems = useMemo(() => {
-    const live = data ?? [];
-    return live.length >= 3 ? live : decisionContent.slice(0, 5);
-  }, [data]);
+  const { data, isLoading } = useQuery({ queryKey: ['favorites'], queryFn: async () => (await api.get<Content[]>('/favorites')).data });
+  const vaultItems = data ?? [];
   const core = vaultItems.slice(0, 3);
-  const hiddenCount = Math.max(6, vaultItems.length + 7);
   const heroImage = core[0]?.banner_url || core[0]?.image_url || 'https://images.unsplash.com/photo-1519608487953-e999c86e7455';
 
   return (
@@ -75,48 +58,30 @@ export default function Favorites() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Segnali core</Text>
-          <Text style={styles.sectionCopy}>I primi tre Super pesano di piu: indicano dove risuoni davvero.</Text>
+          <Text style={styles.sectionCopy}>I contenuti salvati arrivano dal tuo profilo Supabase.</Text>
+          {isLoading && <ActivityIndicator color="#D6FF3F" />}
+          {!isLoading && core.length === 0 && (
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyTitle}>Vault vuoto</Text>
+              <Text style={styles.sectionCopy}>Metti Like o Super nel feed per salvare contenuti reali dal catalogo.</Text>
+            </View>
+          )}
           <View style={styles.coreList}>
             {core.map((item, index) => <CoreSignal key={item.id} item={item} index={index} />)}
           </View>
         </View>
 
-        <View style={styles.hiddenTrait}>
-          <Text style={styles.kicker}>Tratto nascosto</Text>
-          <Text style={styles.hiddenTitle}>Malinconia Cosmica</Text>
-          <Text style={styles.sectionCopy}>Risuoni con storie in cui la solitudine diventa enorme, quasi spaziale, ma resta profondamente umana.</Text>
-        </View>
-
         <View style={styles.analysis}>
           <Text style={styles.kicker}>Analisi emotiva</Text>
-          <Text style={styles.analysisTitle}>I tuoi Super indicano attrazione verso mondi intensi, isolamento emotivo e conflitti interiori.</Text>
-          <Text style={styles.analysisCopy}>Questo archivio conserva le ragioni per cui qualcosa ti resta addosso.</Text>
+          <Text style={styles.analysisTitle}>{core.length ? 'I tuoi salvataggi stanno costruendo il profilo.' : 'Nessuna analisi disponibile.'}</Text>
+          <Text style={styles.analysisCopy}>Questo archivio usa solo interazioni registrate sul backend collegato a Supabase.</Text>
         </View>
 
-        <View style={styles.section}>
+        {vaultItems.length > 0 && <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thread del gusto</Text>
           <Thread items={vaultItems} />
-        </View>
+        </View>}
 
-        <View style={styles.section}>
-          <View style={styles.lockedTop}>
-            <View>
-              <Text style={styles.sectionTitle}>Segnali bloccati</Text>
-              <Text style={styles.sectionCopy}>+{hiddenCount} segnali nascosti nel tuo archivio completo.</Text>
-            </View>
-            <View style={styles.unlock}>
-              <Text style={styles.unlockText}>Futuro</Text>
-            </View>
-          </View>
-          <View style={styles.lockedGrid}>
-            {[0, 1, 2, 3].map((index) => <LockedSignal key={index} index={index} />)}
-          </View>
-        </View>
-
-        <View style={styles.premium}>
-          <Text style={styles.premiumTitle}>Espansione Vault</Text>
-          <Text style={styles.sectionCopy}>In futuro potrai sbloccare analisi profonda, compatibilita emotiva con amici e cluster nascosti di raccomandazioni.</Text>
-        </View>
       </View>
     </ScrollView>
   );
@@ -149,6 +114,8 @@ const styles = StyleSheet.create({
   coreKicker: { color: '#D6FF3F', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   coreTitle: { color: '#F5F5F5', fontSize: 27, lineHeight: 31, fontWeight: '900' },
   coreSignal: { color: '#DADADA', fontSize: 13, lineHeight: 19, fontWeight: '800' },
+  emptyBox: { gap: 8, padding: 18, borderRadius: 14, backgroundColor: '#161A20', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  emptyTitle: { color: '#F5F5F5', fontSize: 22, fontWeight: '900' },
   analysis: {
     gap: 9,
     padding: 18,

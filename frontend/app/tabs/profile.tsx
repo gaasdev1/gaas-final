@@ -3,14 +3,6 @@ import { Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 
-const fallbackSignals = ['fantascienza', 'oscuro', 'emotivo', 'identita', 'solitudine', 'lento', 'filosofico', 'spiazzante'];
-const fallbackPatterns = ['solitudine', 'sacrificio', 'conflitto interiore', 'ambiguita emotiva'];
-const friendProfiles = [
-  { name: 'Luca', archetype: 'Stratega Oscuro', match: 86, trait: 'thriller tesi, finali ambigui' },
-  { name: 'Marta', archetype: 'Romantica Cosmica', match: 74, trait: 'storie emotive, mondi sospesi' },
-  { name: 'Nico', archetype: 'Curatore Notturno', match: 61, trait: 'anime lenti, malinconia visiva' }
-];
-
 function pickArchetype(signals: string[]) {
   const joined = signals.join(' ').toLowerCase();
   if (joined.includes('fantascienza') || joined.includes('spazio')) return 'Esploratore Esistenziale';
@@ -51,33 +43,18 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-function FriendProfile({ friend }: { friend: { name: string; archetype: string; match: number; trait: string } }) {
-  return (
-    <View style={styles.friend}>
-      <View style={styles.friendAvatar}>
-        <Text style={styles.friendInitial}>{friend.name.slice(0, 1)}</Text>
-      </View>
-      <View style={styles.friendInfo}>
-        <View style={styles.friendTop}>
-          <Text style={styles.friendName}>{friend.name}</Text>
-          <Text style={styles.friendMatch}>{friend.match}%</Text>
-        </View>
-        <Text style={styles.friendArchetype}>{friend.archetype}</Text>
-        <Text style={styles.friendTrait}>{friend.trait}</Text>
-      </View>
-    </View>
-  );
-}
-
 export default function Profile() {
+  const profile = useQuery({ queryKey: ['profile'], queryFn: async () => (await api.get('/profile')).data });
   const { data } = useQuery({ queryKey: ['taste'], queryFn: async () => (await api.get('/profile/taste')).data });
   const rawSignals = Object.entries(data?.preferred_genres ?? {})
     .sort((a, b) => Math.abs(Number(b[1])) - Math.abs(Number(a[1])))
     .map(([name]) => name);
-  const signals = rawSignals.length ? rawSignals.slice(0, 7) : fallbackSignals.slice(0, 7);
+  const signals = rawSignals.slice(0, 7);
+  const hasTaste = signals.length > 0;
   const archetype = useMemo(() => pickArchetype(signals), [signals]);
-  const totalSignals = Math.max(rawSignals.length, signals.length);
-  const rareScore = Math.max(3, 11 - Math.min(totalSignals, 8));
+  const totalSignals = rawSignals.length;
+  const rareScore = hasTaste ? Math.max(3, 11 - Math.min(totalSignals, 8)) : 0;
+  const preferredTypes = Object.keys(data?.category_weights ?? {});
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -86,61 +63,51 @@ export default function Profile() {
           <View style={styles.aura} />
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>A</Text>
+              <Text style={styles.avatarText}>{String(profile.data?.username ?? 'G').slice(0, 1).toUpperCase()}</Text>
             </View>
             <View style={styles.profileMeta}>
-              <Text style={styles.profileName}>Profilo personale</Text>
-              <Text style={styles.profileStatus}>Identita in evoluzione</Text>
+              <Text style={styles.profileName}>{profile.data?.username ?? 'Profilo personale'}</Text>
+              <Text style={styles.profileStatus}>{profile.data?.onboarding_completed ? 'Identita in evoluzione' : 'Profilo da completare'}</Text>
             </View>
           </View>
           <Text style={styles.kicker}>IDENTITA</Text>
-          <Text style={styles.title}>{archetype}</Text>
+          <Text style={styles.title}>{hasTaste ? archetype : 'Profilo in costruzione'}</Text>
           <Text style={styles.copy}>
-            Ti muovi verso storie intense, atmosferiche, con tensione emotiva e domande piu grandi della trama.
+            {hasTaste
+              ? 'Il profilo nasce dalle preferenze salvate su Supabase e dalle interazioni registrate nel backend.'
+              : 'Completa onboarding e usa il feed per costruire segnali reali sul tuo profilo Supabase.'}
           </Text>
         </View>
 
         <View style={styles.floatZone}>
           <Text style={styles.sectionTitle}>Segnali vivi</Text>
           <View style={styles.signalCloud}>
-            {signals.slice(0, 6).map((signal, index) => <FloatingSignal key={`${signal}-${index}`} label={signal} index={index} />)}
+            {hasTaste ? signals.slice(0, 6).map((signal, index) => <FloatingSignal key={`${signal}-${index}`} label={signal} index={index} />) : (
+              <View style={styles.emptySignals}>
+                <Text style={styles.body}>Nessun segnale registrato. Completa onboarding e interagisci con il feed.</Text>
+              </View>
+            )}
           </View>
         </View>
 
         <View style={styles.observation}>
           <Text style={styles.sectionKicker}>Evoluzione</Text>
-          <Text style={styles.observationText}>Il tuo profilo sta diventando piu selettivo: meno catalogo, piu atmosfera.</Text>
-          <Text style={styles.observationMuted}>GAAS rileva una preferenza crescente per narrazioni con identita, isolamento e tensione morale.</Text>
-        </View>
-
-        <View style={styles.social}>
-          <View style={styles.socialTop}>
-            <View>
-              <Text style={styles.sectionKicker}>Cerchia</Text>
-              <Text style={styles.sectionTitle}>Amici compatibili</Text>
-            </View>
-            <View style={styles.addFriend}>
-              <Text style={styles.addFriendText}>Aggiungi</Text>
-            </View>
-          </View>
-          <Text style={styles.body}>Confronta segnali e compatibilita culturale. Presto potrai vedere cosa stanno scegliendo i tuoi amici.</Text>
-          <View style={styles.friendList}>
-            {friendProfiles.map((friend) => <FriendProfile key={friend.name} friend={friend} />)}
-          </View>
+          <Text style={styles.observationText}>{hasTaste ? 'Le preferenze sono sincronizzate con Supabase.' : 'Non ci sono ancora abbastanza segnali utente.'}</Text>
+          <Text style={styles.observationMuted}>{hasTaste ? `Categorie attive: ${preferredTypes.join(', ') || 'nessuna categoria salvata'}.` : 'Like, Super e onboarding alimentano questo pannello.'}</Text>
         </View>
 
         <View style={styles.rare}>
           <Text style={styles.rareNumber}>{rareScore}%</Text>
           <View style={styles.rareCopy}>
             <Text style={styles.sectionKicker}>Tratto raro</Text>
-            <Text style={styles.body}>Pochi utenti condividono questa combinazione di intensita emotiva e curiosita speculativa.</Text>
+            <Text style={styles.body}>{hasTaste ? 'Calcolato dai segnali disponibili nel profilo gusto.' : 'Disponibile dopo le prime interazioni reali.'}</Text>
           </View>
         </View>
 
         <View style={styles.patterns}>
           <Text style={styles.sectionTitle}>Pattern emotivi</Text>
           <View style={styles.patternList}>
-            {fallbackPatterns.map((pattern) => (
+            {(hasTaste ? signals : ['Completa onboarding', 'Interagisci con il feed', 'Salva contenuti nel Vault']).map((pattern) => (
               <View key={pattern} style={styles.pattern}>
                 <Text style={styles.patternDot}>-</Text>
                 <Text style={styles.patternText}>{pattern}</Text>
@@ -150,9 +117,9 @@ export default function Profile() {
         </View>
 
         <View style={styles.stats}>
-          <Stat value={`${Math.max(10, totalSignals * 7)}`} label="decisioni lette" />
-          <Stat value={`${Math.max(4, Math.round(totalSignals / 2))}`} label="Super stimati" />
-          <Stat value="Oracle" label="prossimo livello" />
+          <Stat value={`${totalSignals}`} label="segnali gusto" />
+          <Stat value={`${preferredTypes.length}`} label="categorie" />
+          <Stat value={profile.data?.onboarding_completed ? 'Attivo' : 'Setup'} label="stato" />
         </View>
 
         <View style={styles.reward}>
@@ -221,6 +188,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(214,255,63,0.22)'
   },
   signalText: { color: '#F5F5F5', fontSize: 13, fontWeight: '900' },
+  emptySignals: { minHeight: 96, justifyContent: 'center', padding: 16, borderRadius: 14, backgroundColor: '#161A20', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   observation: {
     gap: 9,
     padding: 18,

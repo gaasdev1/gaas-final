@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ImageBackground, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Heart, MessageCircle, Send, Sparkles, Users } from 'lucide-react-native';
-import { decisionContent } from '@/data/decisionContent';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
 import { Content } from '@/types/content';
 
 type Mode = 'forYou' | 'community';
@@ -75,12 +76,25 @@ function FypCard({ item, mode, index }: { item: Content; mode: Mode; index: numb
 
 export default function SearchScreen() {
   const [mode, setMode] = useState<Mode>('forYou');
+  const [query, setQuery] = useState('');
+  const searchTerm = query.trim();
+  const feedQuery = useQuery({
+    queryKey: ['explore-feed', mode],
+    queryFn: async () => (await api.get<Content[]>('/feed')).data,
+    staleTime: 1000 * 60 * 5
+  });
+  const searchQuery = useQuery({
+    queryKey: ['content-search', searchTerm],
+    queryFn: async () => (await api.get<{ results: Content[] }>('/search', { params: { q: searchTerm } })).data.results,
+    enabled: searchTerm.length >= 2,
+    staleTime: 1000 * 60
+  });
   const feed = useMemo(() => {
-    const base = mode === 'forYou'
-      ? [...decisionContent.slice(1), decisionContent[0]]
-      : [...decisionContent].sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
-    return [...base, ...base.slice(0, 4)];
-  }, [mode]);
+    const base = searchTerm.length >= 2 ? (searchQuery.data ?? []) : (feedQuery.data ?? []);
+    const sorted = mode === 'community' ? [...base].sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0)) : base;
+    return sorted;
+  }, [feedQuery.data, mode, searchQuery.data, searchTerm.length]);
+  const loading = feedQuery.isLoading || searchQuery.isFetching;
 
   return (
     <View style={styles.screen}>
@@ -97,6 +111,16 @@ export default function SearchScreen() {
           </Pressable>
         </View>
       </View>
+      <View style={styles.searchBox}>
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Cerca nel catalogo Supabase"
+          placeholderTextColor="#7D8491"
+          style={styles.searchInput}
+          autoCapitalize="none"
+        />
+      </View>
 
       <ScrollView
         style={styles.feed}
@@ -105,6 +129,13 @@ export default function SearchScreen() {
         snapToInterval={590}
         decelerationRate="fast"
       >
+        {loading && <ActivityIndicator color="#D6FF3F" style={styles.loader} />}
+        {!loading && feed.length === 0 && (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyTitle}>Nessun contenuto trovato</Text>
+            <Text style={styles.emptyText}>Il catalogo Supabase non ha ancora risultati per questa vista.</Text>
+          </View>
+        )}
         {feed.map((item, index) => <FypCard key={`${mode}-${item.id}-${index}`} item={item} mode={mode} index={index} />)}
       </ScrollView>
     </View>
@@ -148,8 +179,23 @@ const styles = StyleSheet.create({
   switchActive: { backgroundColor: '#D6FF3F' },
   switchText: { color: '#B8BCC6', fontSize: 13, fontWeight: '900' },
   switchTextActive: { color: '#0F1115' },
+  searchBox: { paddingHorizontal: 14, paddingTop: 12 },
+  searchInput: {
+    height: 48,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    color: '#F5F5F5',
+    backgroundColor: '#181C24',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    fontWeight: '800'
+  },
   feed: { flex: 1 },
   feedContent: { gap: 14, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 110 },
+  loader: { paddingVertical: 36 },
+  emptyBox: { minHeight: 360, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 22 },
+  emptyTitle: { color: '#F5F5F5', fontSize: 24, fontWeight: '900', textAlign: 'center' },
+  emptyText: { color: '#B8BCC6', fontSize: 14, lineHeight: 20, fontWeight: '700', textAlign: 'center' },
   card: {
     height: 576,
     borderRadius: 18,

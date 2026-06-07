@@ -16,7 +16,14 @@ const quickIntents = [
 const intensity = ['leggero', 'medio', 'intenso'];
 const energy = ['emotivo', 'cerebrale', 'teso', 'confortante'];
 const discovery = ['gemme nascoste', 'scelte popolari', 'mix'];
-const categories = ['film', 'serie', 'anime', 'libri', 'giochi', 'podcast'];
+const categories = [
+  { key: 'movie', label: 'film' },
+  { key: 'tv', label: 'serie' },
+  { key: 'anime', label: 'anime' },
+  { key: 'book', label: 'libri' },
+  { key: 'game', label: 'giochi' },
+  { key: 'podcast', label: 'podcast' }
+];
 
 const genreMap: Record<string, string[]> = {
   'horror psicologico': ['horror', 'thriller', 'mistero'],
@@ -31,7 +38,7 @@ export default function Onboarding() {
   const [selectedIntensity, setSelectedIntensity] = useState('medio');
   const [selectedEnergy, setSelectedEnergy] = useState<string[]>(['cerebrale', 'teso']);
   const [selectedDiscovery, setSelectedDiscovery] = useState('mix');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(['film', 'serie', 'libri']);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(['movie', 'tv', 'book']);
   const [saving, setSaving] = useState(false);
   const [building, setBuilding] = useState(false);
 
@@ -49,14 +56,14 @@ export default function Onboarding() {
   async function finish() {
     setSaving(true);
     setBuilding(true);
+    const categoryWeights = Object.fromEntries(categories.map((entry) => [entry.key, selectedCategories.includes(entry.key) ? 1 : 0]));
     await api.post('/onboarding', {
       favorite_genres: interpreted.genres,
       disliked_genres: selectedEnergy.includes('confortante') ? ['horror'] : [],
-      favorite_titles: ['Interstellar', 'Death Note', 'Project Hail Mary'],
+      favorite_titles: [],
       preferred_moods: interpreted.moods,
-      preferred_categories: selectedCategories
+      category_weights: categoryWeights
     });
-    await api.post('/admin/ingestion/seed');
     setTimeout(() => {
       router.replace('/tabs/feed');
     }, 900);
@@ -145,8 +152,8 @@ export default function Onboarding() {
           <Text style={styles.question}>Quali mondi includo?</Text>
           <View style={styles.wrap}>
             {categories.map((entry) => (
-              <Pressable key={entry} onPress={() => toggle(entry, selectedCategories, setSelectedCategories)} style={[styles.chip, selectedCategories.includes(entry) && styles.chipActive]}>
-                <Text style={[styles.chipText, selectedCategories.includes(entry) && styles.chipTextActive]}>{entry}</Text>
+              <Pressable key={entry.key} onPress={() => toggle(entry.key, selectedCategories, setSelectedCategories)} style={[styles.chip, selectedCategories.includes(entry.key) && styles.chipActive]}>
+                <Text style={[styles.chipText, selectedCategories.includes(entry.key) && styles.chipTextActive]}>{entry.label}</Text>
               </Pressable>
             ))}
           </View>
