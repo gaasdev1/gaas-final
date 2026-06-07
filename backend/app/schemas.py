@@ -1,5 +1,5 @@
 from uuid import UUID
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class RegisterIn(BaseModel):
@@ -52,6 +52,21 @@ class ContentOut(BaseModel):
     external_url: str | None = None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def default_description(cls, value: str | None) -> str:
+        return value or ""
+
+    @field_validator("genres", "tags", "moods", mode="before")
+    @classmethod
+    def default_list(cls, value):
+        return value or []
+
+    @field_validator("rating", "popularity", mode="before")
+    @classmethod
+    def default_float(cls, value) -> float:
+        return float(value or 0)
 
 
 class SwipeIn(BaseModel):

@@ -1,179 +1,223 @@
 import uuid
-from datetime import datetime
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from datetime import date, datetime
+
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from pgvector.sqlalchemy import Vector
+
 from app.models.base import Base
 
 
-class User(Base):
-    __tablename__ = "users"
+class Profile(Base):
+    __tablename__ = "profiles"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    username: Mapped[str] = mapped_column(String(60), unique=True, index=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
-    profile_image: Mapped[str | None] = mapped_column(String(500))
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    username: Mapped[str | None] = mapped_column(Text, unique=True)
+    display_name: Mapped[str | None] = mapped_column(Text)
+    avatar_url: Mapped[str | None] = mapped_column(Text)
+    bio: Mapped[str | None] = mapped_column(Text)
+    privacy_setting: Mapped[str] = mapped_column(Text, default="public")
     onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    @property
+    def profile_image(self) -> str | None:
+        return self.avatar_url
+
+
+class Genre(Base):
+    __tablename__ = "genres"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String, unique=True)
+
+
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String, unique=True)
+
+
+class ContentGenre(Base):
+    __tablename__ = "content_genres"
+
+    content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("content.id"), primary_key=True)
+    genre_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("genres.id"), primary_key=True)
+    genre: Mapped[Genre] = relationship()
+
+
+class ContentTag(Base):
+    __tablename__ = "content_tags"
+
+    content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("content.id"), primary_key=True)
+    tag_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tags.id"), primary_key=True)
+    tag: Mapped[Tag] = relationship()
+
 
 class Content(Base):
-    __tablename__ = "contents"
-    __table_args__ = (
-        UniqueConstraint("source", "external_id", name="uq_source_external_id"),
-        Index("ix_contents_type_popularity", "content_type", "popularity"),
-    )
+    __tablename__ = "content"
+    __table_args__ = (UniqueConstraint("source", "external_id", name="content_source_external_id_key"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    content_type: Mapped[str] = mapped_column(String(30), index=True)
-    title: Mapped[str] = mapped_column(String(300), index=True)
-    original_title: Mapped[str | None] = mapped_column(String(300))
-    description: Mapped[str] = mapped_column(Text, default="")
-    genres: Mapped[list[str]] = mapped_column(JSONB, default=list)
-    tags: Mapped[list[str]] = mapped_column(JSONB, default=list)
-    moods: Mapped[list[str]] = mapped_column(JSONB, default=list)
-    image_url: Mapped[str | None] = mapped_column(String(800))
-    banner_url: Mapped[str | None] = mapped_column(String(800))
-    release_year: Mapped[int | None] = mapped_column(Integer)
-    rating: Mapped[float] = mapped_column(Float, default=0)
-    popularity: Mapped[float] = mapped_column(Float, default=0)
-    source: Mapped[str] = mapped_column(String(50), index=True)
-    external_id: Mapped[str] = mapped_column(String(120), index=True)
-    external_url: Mapped[str | None] = mapped_column(String(800))
-    language: Mapped[str | None] = mapped_column(String(20))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    embedding: Mapped["ContentEmbedding"] = relationship(back_populates="content", uselist=False)
+    type: Mapped[str] = mapped_column(String, index=True)
+    source: Mapped[str] = mapped_column(String)
+    external_id: Mapped[str] = mapped_column(String)
+    slug: Mapped[str | None] = mapped_column(String)
+    title: Mapped[str] = mapped_column(String)
+    original_title: Mapped[str | None] = mapped_column(String)
+    subtitle: Mapped[str | None] = mapped_column(String)
+    description: Mapped[str | None] = mapped_column(Text)
+    cover_url: Mapped[str | None] = mapped_column(Text)
+    banner_url: Mapped[str | None] = mapped_column(Text)
+    trailer_url: Mapped[str | None] = mapped_column(Text)
+    official_url: Mapped[str | None] = mapped_column(Text)
+    preview_url: Mapped[str | None] = mapped_column(Text)
+    release_date: Mapped[date | None] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date)
+    original_language: Mapped[str | None] = mapped_column(String)
+    country_code: Mapped[str | None] = mapped_column(String)
+    age_rating: Mapped[str | None] = mapped_column(String)
+    status: Mapped[str | None] = mapped_column(String)
+    content_format: Mapped[str | None] = mapped_column(String)
+    average_rating: Mapped[float | None] = mapped_column(Numeric)
+    rating_count: Mapped[int | None] = mapped_column(Integer)
+    popularity_score: Mapped[float | None] = mapped_column(Numeric)
+    is_adult: Mapped[bool | None] = mapped_column(Boolean)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    genre_links: Mapped[list[ContentGenre]] = relationship(lazy="selectin")
+    tag_links: Mapped[list[ContentTag]] = relationship(lazy="selectin")
 
-class ContentEmbedding(Base):
-    __tablename__ = "content_embeddings"
-    __table_args__ = (
-        Index(
-            "ix_content_embeddings_vector",
-            "embedding",
-            postgresql_using="ivfflat",
-            postgresql_ops={"embedding": "vector_cosine_ops"},
-        ),
-    )
+    @property
+    def content_type(self) -> str:
+        return self.type
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contents.id", ondelete="CASCADE"), index=True)
-    embedding: Mapped[list[float]] = mapped_column(Vector(1536))
-    embedding_model: Mapped[str] = mapped_column(String(100))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    content: Mapped[Content] = relationship(back_populates="embedding")
+    @property
+    def genres(self) -> list[str]:
+        return [link.genre.name for link in self.genre_links if link.genre]
+
+    @property
+    def tags(self) -> list[str]:
+        return [link.tag.name for link in self.tag_links if link.tag]
+
+    @property
+    def moods(self) -> list[str]:
+        return []
+
+    @property
+    def image_url(self) -> str | None:
+        return self.cover_url
+
+    @property
+    def release_year(self) -> int | None:
+        return self.release_date.year if self.release_date else None
+
+    @property
+    def rating(self) -> float:
+        return float(self.average_rating or 0)
+
+    @property
+    def popularity(self) -> float:
+        return float(self.popularity_score or 0)
+
+    @property
+    def external_url(self) -> str | None:
+        return self.official_url or self.preview_url
+
+    @property
+    def language(self) -> str | None:
+        return self.original_language
 
 
 class Swipe(Base):
     __tablename__ = "swipes"
-    __table_args__ = (UniqueConstraint("user_id", "content_id", name="uq_swipe_user_content"),)
+    __table_args__ = (UniqueConstraint("user_id", "content_id", name="swipes_user_id_content_id_key"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contents.id", ondelete="CASCADE"), index=True)
-    swipe_type: Mapped[str] = mapped_column(String(20))
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("content.id"), index=True)
+    action: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    @property
+    def swipe_type(self) -> str:
+        return {"like": "right", "dislike": "left", "not_interested": "left"}.get(self.action, self.action)
 
-class Favorite(Base):
-    __tablename__ = "favorites"
-    __table_args__ = (UniqueConstraint("user_id", "content_id", name="uq_favorite_user_content"),)
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contents.id", ondelete="CASCADE"), index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    @swipe_type.setter
+    def swipe_type(self, value: str) -> None:
+        self.action = {"right": "like", "superlike": "like", "left": "dislike"}.get(value, value)
 
 
-class DecisionSession(Base):
-    __tablename__ = "decision_sessions"
-    __table_args__ = (Index("ix_decision_sessions_user_category_status", "user_id", "category", "status"),)
+class Watchlist(Base):
+    __tablename__ = "watchlist"
+    __table_args__ = (UniqueConstraint("user_id", "content_id", name="watchlist_user_id_content_id_key"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    category: Mapped[str] = mapped_column(String(30), index=True)
-    decision_count: Mapped[int] = mapped_column(Integer, default=0)
-    target_decisions: Mapped[int] = mapped_column(Integer, default=10)
-    status: Mapped[str] = mapped_column(String(20), default="ACTIVE", index=True)
-    session_vector: Mapped[dict] = mapped_column(JSONB, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("content.id"), index=True)
+    watched: Mapped[bool] = mapped_column(Boolean, default=False)
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    watched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
-class IntentSession(Base):
-    __tablename__ = "intent_sessions"
-    __table_args__ = (Index("ix_intent_sessions_user_status", "user_id", "status"),)
+class UserPreference(Base):
+    __tablename__ = "user_preferences"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    status: Mapped[str] = mapped_column(String(20), default="ACTIVE", index=True)
-    source: Mapped[str] = mapped_column(String(40), default="ai_chat")
-    session_title: Mapped[str] = mapped_column(String(160))
-    user_intent_summary: Mapped[str] = mapped_column(Text, default="")
-    category: Mapped[str] = mapped_column(String(30), index=True)
-    genres: Mapped[list[str]] = mapped_column(JSONB, default=list)
-    moods: Mapped[list[str]] = mapped_column(JSONB, default=list)
-    energy: Mapped[list[str]] = mapped_column(JSONB, default=list)
-    boost_tags: Mapped[list[str]] = mapped_column(JSONB, default=list)
-    exclude_tags: Mapped[list[str]] = mapped_column(JSONB, default=list)
-    intensity: Mapped[int] = mapped_column(Integer, default=3)
-    mainstream_level: Mapped[str] = mapped_column(String(20), default="medium")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
-
-class UserInteraction(Base):
-    __tablename__ = "user_interactions"
-    __table_args__ = (Index("ix_user_interactions_user_session", "user_id", "session_id"),)
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contents.id", ondelete="CASCADE"), index=True)
-    session_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("decision_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
-    interaction_type: Mapped[str] = mapped_column(String(30), index=True)
-    category: Mapped[str] = mapped_column(String(30), index=True)
-    watch_time: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
-class UserTasteProfile(Base):
-    __tablename__ = "user_taste_profiles"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
-    preferred_genres: Mapped[dict] = mapped_column(JSONB, default=dict)
-    disliked_genres: Mapped[dict] = mapped_column(JSONB, default=dict)
-    preferred_tags: Mapped[dict] = mapped_column(JSONB, default=dict)
-    preferred_moods: Mapped[dict] = mapped_column(JSONB, default=dict)
-    category_weights: Mapped[dict] = mapped_column(JSONB, default=dict)
-    embedding_profile: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True, index=True)
+    preferred_types: Mapped[list[str] | None] = mapped_column(ARRAY(String))
+    genre_weights: Mapped[dict | None] = mapped_column(JSONB, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    @property
+    def preferred_genres(self) -> dict:
+        return self.genre_weights or {}
 
-class Recommendation(Base):
-    __tablename__ = "recommendations"
+    @preferred_genres.setter
+    def preferred_genres(self, value: dict) -> None:
+        self.genre_weights = value
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contents.id", ondelete="CASCADE"), index=True)
-    score: Mapped[float] = mapped_column(Float, index=True)
-    reason: Mapped[str | None] = mapped_column(Text)
-    served_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    clicked: Mapped[bool] = mapped_column(Boolean, default=False)
-    swiped: Mapped[bool] = mapped_column(Boolean, default=False)
+    @property
+    def disliked_genres(self) -> dict:
+        return {k: v for k, v in (self.genre_weights or {}).items() if isinstance(v, (int, float)) and v < 0}
+
+    @disliked_genres.setter
+    def disliked_genres(self, value: dict) -> None:
+        weights = dict(self.genre_weights or {})
+        weights.update(value or {})
+        self.genre_weights = weights
+
+    @property
+    def preferred_tags(self) -> dict:
+        return {}
+
+    @preferred_tags.setter
+    def preferred_tags(self, _: dict) -> None:
+        return None
+
+    @property
+    def preferred_moods(self) -> dict:
+        return {}
+
+    @preferred_moods.setter
+    def preferred_moods(self, _: dict) -> None:
+        return None
+
+    @property
+    def category_weights(self) -> dict:
+        return {key: 1 for key in (self.preferred_types or [])}
+
+    @category_weights.setter
+    def category_weights(self, value: dict) -> None:
+        self.preferred_types = [key for key, weight in (value or {}).items() if weight and weight > 0]
+
+    embedding_profile = None
 
 
-class IngestionLog(Base):
-    __tablename__ = "ingestion_logs"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source: Mapped[str] = mapped_column(String(50), index=True)
-    status: Mapped[str] = mapped_column(String(30))
-    items_fetched: Mapped[int] = mapped_column(Integer, default=0)
-    items_saved: Mapped[int] = mapped_column(Integer, default=0)
-    errors: Mapped[dict] = mapped_column(JSONB, default=list)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+# Backwards-compatible names used by the existing route modules.
+User = Profile
+Favorite = Watchlist
+UserTasteProfile = UserPreference

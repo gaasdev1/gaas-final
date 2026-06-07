@@ -13,7 +13,7 @@ router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
 @router.get("", response_model=list[ContentOut])
 async def recommendations(user: User = Depends(current_user), db: AsyncSession = Depends(get_db)) -> list[Content]:
-    rows = await db.scalars(select(Content).order_by(desc(Content.popularity)).limit(30))
+    rows = await db.scalars(select(Content).order_by(desc(Content.popularity_score)).limit(30))
     return list(rows.all())
 
 
@@ -25,7 +25,7 @@ async def explain(content_id: UUID, user: User = Depends(current_user), db: Asyn
     liked_rows = await db.scalars(
         select(Content.title)
         .join(Swipe, Swipe.content_id == Content.id)
-        .where(Swipe.user_id == user.id, Swipe.swipe_type.in_(["right", "superlike"]))
+        .where(Swipe.user_id == user.id, Swipe.action == "like")
         .limit(10)
     )
     reason = await OpenAIService().explain(list(liked_rows.all()), f"{content.title}. {content.description}")

@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,11 +9,20 @@ class Settings(BaseSettings):
     api_base_url: str = "http://localhost:8000"
 
     database_url: str = "postgresql+asyncpg://gaas:gaas@localhost:5432/gaas"
+    database_echo: bool = False
+    database_pool_size: int = 5
+    database_max_overflow: int = 10
+    database_pool_recycle_seconds: int = 1800
+    database_create_tables: bool = False
+    database_statement_cache_size: int | None = None
+    database_ssl_verify: bool = False
     redis_url: str = "redis://localhost:6379/0"
 
     supabase_url: str | None = None
     supabase_anon_key: str | None = None
+    supabase_publishable_key: str | None = None
     supabase_service_role_key: str | None = None
+    supabase_auth_timeout_seconds: float = 10
     database_ssl: bool = False
 
     jwt_secret_key: str = "change-me"
@@ -45,6 +55,12 @@ class Settings(BaseSettings):
     spotify_api_base_url: str = "https://api.spotify.com/v1"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @model_validator(mode="after")
+    def validate_production_secrets(self) -> "Settings":
+        if self.app_env.lower() in {"production", "prod"} and self.jwt_secret_key.startswith("change-me"):
+            raise ValueError("JWT_SECRET_KEY must be set to a strong secret in production")
+        return self
 
 
 @lru_cache

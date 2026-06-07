@@ -29,7 +29,6 @@ services:
     env_file: ../.env
     command: celery -A app.workers.celery_app worker --loglevel=INFO
     depends_on:
-      - api
       - redis
 volumes:
   pgdata:

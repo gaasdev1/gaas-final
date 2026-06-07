@@ -1,30 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.auth.security import create_access_token, hash_password, verify_password
-from app.db import get_db
-from app.models.entities import User
+from fastapi import APIRouter, HTTPException
+
+from app.auth.supabase import sign_in, sign_up
 from app.schemas import LoginIn, RegisterIn, TokenOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def token_from_auth_response(data: dict) -> TokenOut:
+    access_token = data.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=202, detail="Registration created. Confirm the email, then log in.")
+    return TokenOut(access_token=access_token, token_type=data.get("token_type") or "bearer")
+
+
 @router.post("/register", response_model=TokenOut)
-async def register(payload: RegisterIn, db: AsyncSession = Depends(get_db)) -> TokenOut:
-    exists = await db.scalar(select(User).where((User.email == payload.email) | (User.username == payload.username)))
-    if exists:
-        raise HTTPException(status_code=409, detail="Email or username already used")
-    user = User(username=payload.username, email=payload.email, password_hash=hash_password(payload.password))
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    return TokenOut(access_token=create_access_token(user.id))
+async def register(payload: RegisterIn) -> TokenOut:
+    data = await sign_up(payload.email, payload.password, payload.username)
+    return token_from_auth_response(data)
 
 
 @router.post("/login", response_model=TokenOut)
-async def login(payload: LoginIn, db: AsyncSession = Depends(get_db)) -> TokenOut:
-    user = await db.scalar(select(User).where(User.email == payload.email))
-    if not user or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    return TokenOut(access_token=create_access_token(user.id))
-
+async def login(payload: LoginIn) -> TokenOut:
+    data = await sign_in(payload.email, payload.password)
+    return token_from_auth_response(data)

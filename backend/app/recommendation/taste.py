@@ -1,4 +1,6 @@
-from app.models.entities import Content, DecisionSession, UserTasteProfile
+from typing import Any
+
+from app.models.entities import Content, UserTasteProfile
 
 INTERACTION_WEIGHTS = {
     "LIKE": 1.0,
@@ -21,7 +23,7 @@ def content_signals(content: Content) -> list[str]:
 
 def apply_interaction_to_profile(
     profile: UserTasteProfile,
-    session: DecisionSession | None,
+    session: Any | None,
     content: Content,
     interaction_type: str,
     watch_time: int = 0,

@@ -11,6 +11,6 @@ router = APIRouter(prefix="/trending", tags=["trending"])
 
 @router.get("", response_model=list[ContentOut])
 async def trending(_: User = Depends(current_user), db: AsyncSession = Depends(get_db)) -> list[Content]:
-    rows = await db.scalars(select(Content).order_by(desc(Content.popularity)).limit(30))
+    rows = await db.scalars(select(Content).order_by(desc(Content.popularity_score)).limit(30))
     return list(rows.all())
 
