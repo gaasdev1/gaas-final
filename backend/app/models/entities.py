@@ -45,7 +45,7 @@ class ContentGenre(Base):
 
     content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("content.id"), primary_key=True)
     genre_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("genres.id"), primary_key=True)
-    genre: Mapped[Genre] = relationship()
+    genre: Mapped[Genre] = relationship(lazy="joined")
 
 
 class ContentTag(Base):
@@ -53,7 +53,7 @@ class ContentTag(Base):
 
     content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("content.id"), primary_key=True)
     tag_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tags.id"), primary_key=True)
-    tag: Mapped[Tag] = relationship()
+    tag: Mapped[Tag] = relationship(lazy="joined")
 
 
 class Content(Base):
