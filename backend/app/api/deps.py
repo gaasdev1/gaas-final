@@ -8,7 +8,7 @@ from app.auth.supabase import get_auth_user
 from app.db import get_db
 from app.models.entities import Profile
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
 async def current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> Profile:

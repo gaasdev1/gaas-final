@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
 
 from app.auth.supabase import sign_in, sign_up
 from app.schemas import LoginIn, RegisterIn, TokenOut
@@ -22,4 +23,10 @@ async def register(payload: RegisterIn) -> TokenOut:
 @router.post("/login", response_model=TokenOut)
 async def login(payload: LoginIn) -> TokenOut:
     data = await sign_in(payload.email, payload.password)
+    return token_from_auth_response(data)
+
+
+@router.post("/token", response_model=TokenOut)
+async def token(form: OAuth2PasswordRequestForm = Depends()) -> TokenOut:
+    data = await sign_in(form.username, form.password)
     return token_from_auth_response(data)
